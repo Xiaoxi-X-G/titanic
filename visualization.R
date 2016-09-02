@@ -1,7 +1,19 @@
 rm(list = ls())
 
 Data.path <- "C:/gxx/Database/titanic"
-Column.type <- c   
+Column.type <- c('integer',   # PassengerId
+                 'factor',    # Survived 
+                 'factor',    # Pclass
+                 'character', # Name
+                 'factor',    # Sex
+                 'numeric',   # Age
+                 'integer',   # SibSp
+                 'integer',   # Parch
+                 'character', # Ticket
+                 'numeric',   # Fare
+                 'character', # Cabin
+                 'factor'     # Embarked
+) 
 
 train.raw <- read.csv(paste(Data.path, "/train.csv", sep=""),
                       colClasses = Column.type,
@@ -307,6 +319,36 @@ summary(df.train.munged)
 
 
 ###### Fitting a Model 1 ##############
+## check correlations
+
+corrgram.data2 <- df.train.munged
+
+corrgram.data2$Fate <- as.numeric(corrgram.data2$Fate)
+corrgram.data2$Sex <- as.numeric(corrgram.data2$Sex)
+corrgram.data2$Boat.dibs <- as.numeric(corrgram.data2$Boat.dibs)
+corrgram.data2$Title <- as.numeric(corrgram.data2$Title)
+corrgram.data2$Class <- as.numeric(corrgram.data2$Class)
+corrgram.data2$Deck <- as.numeric(corrgram.data2$Deck)
+corrgram.data2$Side <- as.numeric(corrgram.data2$Side)
+corrgram.data2$Embarked <- as.numeric(corrgram.data2$Embarked)
+
+ToCheck <- c("Fate",
+             "Sex",
+             "Boat.dibs",
+             "Age",
+             "Title",
+             "Class",
+             "Deck",
+             "Side",
+             "Fare.pp",
+             "Embarked",
+             "Family")
+
+
+corrgram(corrgram.data2[,ToCheck], order=F, lower.panel = panel.ellipse,
+           upper.panel = panel.pie)
+
+
 require(caret)
 
 ## Split 80/20 for training and testing: preserve the distribution of the outcomes in the training and test sets 
@@ -318,5 +360,8 @@ test.batch <- df.train.munged[-train.rows,]
 ### Model 1: Logistic regression y ~ f(X), f() is sigmoid function with parameter \theta
 Titanic.logit.1 <- glm(Fate ~ Sex + Age + Class, data = train.batch, family = binomial("logit"))
 
+## Check corrgram to figure out Model2
+Titanic.logit.2 <- glm(Fate ~ Sex + Boat.dibs + Class + Deck + Side + Fare.pp + Embarked, 
+                       data = train.batch, family = binomial("logit"))
 # The null deviance shows how well passenger survival is 
 # predicted by a "null" model using only a constant (grand mean). 
