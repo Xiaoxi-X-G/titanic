@@ -340,6 +340,7 @@ ToCheck <- c("Fate",
              "Class",
              "Deck",
              "Side",
+             "Fare",
              "Fare.pp",
              "Embarked",
              "Family")
@@ -358,10 +359,21 @@ train.batch <- df.train.munged[train.rows,]
 test.batch <- df.train.munged[-train.rows,]
 
 ### Model 1: Logistic regression y ~ f(X), f() is sigmoid function with parameter \theta
-Titanic.logit.1 <- glm(Fate ~ Sex + Age + Class, data = train.batch, family = binomial("logit"))
+Titanic.logit.1 <- glm(Fate ~ Sex + Boat.dibs + Class + Age + Deck + Side + Fare.pp + Embarked + Family,
+                       data = train.batch, family = binomial("logit"))
 
 ## Check corrgram to figure out Model2
 Titanic.logit.2 <- glm(Fate ~ Sex + Boat.dibs + Class + Deck + Side + Fare.pp + Embarked, 
                        data = train.batch, family = binomial("logit"))
 # The null deviance shows how well passenger survival is 
 # predicted by a "null" model using only a constant (grand mean). 
+
+anova(Titanic.logit.1, test = "Chisq")
+anova(Titanic.logit.2, test = "Chisq")
+Titanic.logit.3 <- glm(Fate ~ Sex + Boat.dibs + Class + Embarked + Age + Fare.pp + Embarked + Family, 
+                       data = train.batch, family = binomial("logit"))
+
+
+
+#### Train the Model ####
+## Use the train function in Kuhn's caret package to fit binary logistic regression models
