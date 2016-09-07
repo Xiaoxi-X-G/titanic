@@ -377,3 +377,33 @@ Titanic.logit.3 <- glm(Fate ~ Sex + Boat.dibs + Class + Embarked + Age + Fare.pp
 
 #### Train the Model ####
 ## Use the train function in Kuhn's caret package to fit binary logistic regression models
+require(caret)
+### K-fold validation: Overcome overfitting problem.
+# In K-fold validation, the original sample are randomed partitioned into K-equally subsamples.
+# Of the K subsamples,  a single subsample is used as validation data for testing the model, the
+# rest K-1 subsamples are used to training the model. The process then repeats K times, which later
+# averaged to a single estimation.
+
+##1. 10-fold validation, 3 times
+##2. AUC (Area under ROC curve) is as performance metric to figure out the parameters
+
+cv.ctrl <- trainControl(method = "repeatedcv",
+                        repeats = 3,   # "repeatedcv" is used to specify repeated K-fold cross-validation 
+                        #(and the argument repeats controls the number of repetitions). K
+                        #is controlled by the number argument and defaults to 10.
+                        classProbs = T,
+                        #Since the ROC curve is based on the predicted class probabilities 
+                        #(which are not computed automatically), another option is required. 
+                        #The classProbs = TRUE option is used to include these calculations.
+                        summaryFunction = twoClassSummary
+                        #The twoClassSummary will compute measures specific to two-class problems, 
+                        #such as the area under the ROC curve, the sensitivity and specificity.
+                        )
+
+set.seed(35)
+
+glm.tune.1 <- train(Fate ~ Sex + Class + Age + Family + Embarked,
+                    data = train.batch,
+                    method = "glm",
+                    metric = "ROC",
+                    trControl = cv.ctrl)
