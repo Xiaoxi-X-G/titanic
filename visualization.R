@@ -318,7 +318,7 @@ summary(df.train.munged)
 
 
 
-###### Fitting a Model 1 ##############
+###### Fitting a Model 1
 ## check correlations
 
 corrgram.data2 <- df.train.munged
@@ -350,6 +350,8 @@ corrgram(corrgram.data2[,ToCheck], order=F, lower.panel = panel.ellipse,
            upper.panel = panel.pie)
 
 
+###### Logistic models #####
+
 require(caret)
 
 ## Split 80/20 for training and testing: preserve the distribution of the outcomes in the training and test sets 
@@ -375,7 +377,7 @@ Titanic.logit.3 <- glm(Fate ~ Sex + Boat.dibs + Class + Embarked + Age + Fare.pp
 
 
 
-#### Train the Model ####
+#### Train the Model 
 ## Use the train function in Kuhn's caret package to fit binary logistic regression models
 require(caret)
 ### K-fold validation: Overcome overfitting problem.
@@ -393,17 +395,94 @@ cv.ctrl <- trainControl(method = "repeatedcv",
                         #is controlled by the number argument and defaults to 10.
                         classProbs = T,
                         #Since the ROC curve is based on the predicted class probabilities 
-                        #(which are not computed automatically), another option is required. 
-                        #The classProbs = TRUE option is used to include these calculations.
+                        #(as to define the threshold, which are not computed automatically), 
+                        # another option is required. The classProbs = TRUE option is 
+                        #used to include these calculations.
                         summaryFunction = twoClassSummary
                         #The twoClassSummary will compute measures specific to two-class problems, 
                         #such as the area under the ROC curve, the sensitivity and specificity.
                         )
 
 set.seed(35)
-
 glm.tune.1 <- train(Fate ~ Sex + Class + Age + Family + Embarked,
                     data = train.batch,
                     method = "glm",
                     metric = "ROC",
                     trControl = cv.ctrl)
+summary(glm.tune.1)
+
+
+# class compression:
+# Think of it as collapsing particular levels on a categorical variable. 
+#  use Embarked and the I() function, which inhibits interpretation & conversion of R objects, 
+# to create a new 2-level factor within the model formula. This factor is valued TRUE if a 
+# passenger's port of origin was Southampton ("S"), or FALSE otherwise.
+
+set.seed(35)
+glm.tune.2 <- train(Fate ~ Sex + Class + Age + Family + I(Embarked == "Q"),
+                    data = train.batch,
+                    method = "glm",
+                    metric = "ROC",
+                    trControl = cv.ctrl)
+summary(glm.tune.2)
+
+
+####
+set.seed(35)
+glm.tune.3 <- train(Fate ~ Sex + Class + Age + Family + Title,
+                    data = train.batch,
+                    method = "glm",
+                    metric = "ROC",
+                    trControl = cv.ctrl)
+
+summary(glm.tune.3)
+# Drop Sexmale, add Title=Mr, Noble
+
+### 
+set.seed(35)
+glm.tune.4 <- train(Fate ~ Class + Age + Family + I(Title == "Mr") + I(Title=="Noble"),
+                    method = "glm",
+                    metric = "ROC",
+                    data = train.batch,
+                    trControl = cv.ctrl)
+summary(glm.tune.4)
+
+
+###
+#Remember that there were a lot of male passengers in third class. Given the 
+# "women and children first" policy already mentioned plus  third-class men might make a 
+# further dent in that residual deviance
+
+set.seed(35)
+glm.tune.5 <-train(Fate ~ Class + Age + Family + 
+                     I(Title=="Mr" & Class=="Third"),
+                   data = train.batch,
+                   method = "glm",
+                   metric = "ROC",
+                   trControl = cv.ctrl)
+summary(glm.tune.5)
+
+#### Turns out, glm.tune.3 gives the best results
+
+
+#### Other models
+
+#### Boosting #####
+## First up is adaptive boosting. I can instruct train to fit a stochastic boosting model for 
+# the binary response Fate using the adapackage and a range of values for each of three 
+# tuning parameters. Concretely, when fitting a model using train with method="ada", 
+# one has three levers to tweak: iter (number of boosting iterations, default=50), 
+# maxdepth (depth of trees), and nu (shrinkage parameter, default=1).
+
+ada.grid <- expand.grid(.iter = c(50, 100),
+                        .maxdepth = c(4, 8),
+                        .nu = c(0.1, 1))
+set.seed(35)
+ada.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
+                  data = train.batch,
+                  method = "ada",
+                  metric = "ROC",
+                  tuneGrid = ada.grid,
+                  trControl = cv.ctrl)
+ada.tune
+plot(ada.tune)
