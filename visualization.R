@@ -379,7 +379,7 @@ Titanic.logit.3 <- glm(Fate ~ Sex + Boat.dibs + Class + Embarked + Age + Fare.pp
 
 #### Train the Model 
 ## Use the train function in Kuhn's caret package to fit binary logistic regression models
-require(caret)
+
 ### K-fold validation: Overcome overfitting problem.
 # In K-fold validation, the original sample are randomed partitioned into K-equally subsamples.
 # Of the K subsamples,  a single subsample is used as validation data for testing the model, the
@@ -419,7 +419,7 @@ summary(glm.tune.1)
 # passenger's port of origin was Southampton ("S"), or FALSE otherwise.
 
 set.seed(35)
-glm.tune.2 <- train(Fate ~ Sex + Class + Age + Family + I(Embarked == "Q"),
+glm.tune.2 <- train(Fate ~ Sex + Class + Age + Family + I(Embarked == "S"),
                     data = train.batch,
                     method = "glm",
                     metric = "ROC",
@@ -429,7 +429,7 @@ summary(glm.tune.2)
 
 ####
 set.seed(35)
-glm.tune.3 <- train(Fate ~ Sex + Class + Age + Family + Title,
+glm.tune.3 <- train(Fate ~ Sex + Class + Age + Family + Title + I(Embarked == "S"),
                     data = train.batch,
                     method = "glm",
                     metric = "ROC",
@@ -440,7 +440,8 @@ summary(glm.tune.3)
 
 ### 
 set.seed(35)
-glm.tune.4 <- train(Fate ~ Class + Age + Family + I(Title == "Mr") + I(Title=="Noble"),
+glm.tune.4 <- train(Fate ~  Class + Age + Family + I(Embarked == "S")
+                    + I(Title == "Mr") + I(Title=="Noble"),
                     method = "glm",
                     metric = "ROC",
                     data = train.batch,
@@ -454,7 +455,8 @@ summary(glm.tune.4)
 # further dent in that residual deviance
 
 set.seed(35)
-glm.tune.5 <-train(Fate ~ Class + Age + Family + 
+glm.tune.5 <-train(Fate ~ Class + Age + Family + I(Embarked == "S") +  
+                     I(Title == "Mr") + I(Title=="Noble") +
                      I(Title=="Mr" & Class=="Third"),
                    data = train.batch,
                    method = "glm",
@@ -462,17 +464,24 @@ glm.tune.5 <-train(Fate ~ Class + Age + Family +
                    trControl = cv.ctrl)
 summary(glm.tune.5)
 
-#### Turns out, glm.tune.3 gives the best results
+#### Turns out, glm.tune.5 gives the best results
 
 
 #### Other models
 
 #### Boosting #####
+require(ada)
 ## First up is adaptive boosting. I can instruct train to fit a stochastic boosting model for 
 # the binary response Fate using the adapackage and a range of values for each of three 
 # tuning parameters. Concretely, when fitting a model using train with method="ada", 
 # one has three levers to tweak: iter (number of boosting iterations, default=50), 
 # maxdepth (depth of trees), and nu (shrinkage parameter, default=1).
+
+# In particular, boosting is to find stronger and more comprehesive rulse from many weaker rules.
+# Step1: Use a weak/simple rule as a classfier, and then evolve to multiple version by panilying incorrect results
+# step2: Combine all weak rules and generate a stronger rules. Which later can be used to generate more 
+#        stronger rules with different version
+# ..., continue, until .depth or accuracy met
 
 ada.grid <- expand.grid(.iter = c(50, 100),
                         .maxdepth = c(4, 8),
@@ -485,4 +494,15 @@ ada.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
                   tuneGrid = ada.grid,
                   trControl = cv.ctrl)
 ada.tune
-plot(ada.tune)
+plot.train(ada.tune)
+
+
+#### Random forest #####
+
+# The number of randomly pre-selected predictor variables for each node, 
+# designated mtry, is the sole parameter available for tuning an RF with train.
+
+# step1: Use bootstrap to generate many training dataset.
+# step2: build predictive model for each training dataset.
+# step3: Combine results (averaging or majority vote) and produce finial predicts.
+
