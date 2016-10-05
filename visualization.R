@@ -498,7 +498,7 @@ plot.train(ada.tune)
 
 
 #### Random forest #####
-
+require(randomForest)
 # The number of randomly pre-selected predictor variables for each node, 
 # designated mtry, is the sole parameter available for tuning an RF with train.
 
@@ -506,3 +506,12 @@ plot.train(ada.tune)
 # step2: build predictive model for each training dataset.
 # step3: Combine results (averaging or majority vote) and produce finial predicts.
 
+set.seed(35)
+rf.grid <- data.frame(.mtry = c(2,3)) # mtry =  the square root of the number of variables
+rf.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
+                 data = train.batch,
+                 method = "rf",
+                 metric = "ROC",
+                 tuneGrid = rf.grid,
+                 trControl = cv.ctrl)
+rf.tune
