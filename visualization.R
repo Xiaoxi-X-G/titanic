@@ -515,3 +515,31 @@ rf.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
                  tuneGrid = rf.grid,
                  trControl = cv.ctrl)
 rf.tune
+
+
+### Support VEctor Machine #####
+# fit a support vector machine (SVM) model to the Titanic data.
+# Use Kernel to separate data one the observation feature space
+# One of the population is Radial Kernel to meature the distance between observations,
+# ie: exp(-gamma sum(Xi-Xj)^2)
+
+# The cost parameter controls the size of margin: distance from margin to hyperplane
+# The default grid of cost parameter C is 0.25, 0.5, and 1. If we set train argument tuneLength = 9, 
+# the grid expands to c(0.25, 0.5, 1, 2, 4, 8, 16, 32, 64).
+
+# As SVM is considered sensitive to the scale and magnitude of the presented features, 
+# I'll use the preProcess argument to instruct train to make arrangements for normalizing 
+# the data within resampling loops
+
+set.seed(35)
+svm.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
+                  data = train.batch,
+                  method = "svmRadial",
+                  tuneLength = 9,
+                  preProcess = c("center", "scale"),
+                  metric = "ROC",
+                  trControl =  cv.ctrl)
+
+svm.tune
+
+
