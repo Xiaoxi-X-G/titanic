@@ -1,6 +1,6 @@
 rm(list = ls())
 
-Data.path <- "C:/gxx/Database/titanic"
+Data.path <- "C:/Users/Xiaoxi/Dropbox/work/2016-2017OtherDAProject/DataSet/titanic"
 Column.type <- c('integer',   # PassengerId
                  'factor',    # Survived 
                  'factor',    # Pclass
@@ -390,7 +390,7 @@ Titanic.logit.3 <- glm(Fate ~ Sex + Boat.dibs + Class + Embarked + Age + Fare.pp
 ##2. AUC (Area under ROC curve) is as performance metric to figure out the parameters
 
 cv.ctrl <- trainControl(method = "repeatedcv",
-                        repeats = 3,   # "repeatedcv" is used to specify repeated K-fold cross-validation 
+                        repeats = 5,   # "repeatedcv" is used to specify repeated K-fold cross-validation 
                         #(and the argument repeats controls the number of repetitions). K
                         #is controlled by the number argument and defaults to 10.
                         classProbs = T,
@@ -399,8 +399,14 @@ cv.ctrl <- trainControl(method = "repeatedcv",
                         # another option is required. The classProbs = TRUE option is 
                         #used to include these calculations.
                         summaryFunction = twoClassSummary
+                        # https://cran.r-project.org/web/packages/caret/vignettes/caret.pdf
+                        
+                        # summaryFunction is used to measure the performance of the model by taking
+                        # the observed and predicted value
+                        
                         #The twoClassSummary will compute measures specific to two-class problems, 
-                        #such as the area under the ROC curve, the sensitivity and specificity.
+                        #such as the area under the ROC curve, the sensitivity and specificity,
+                        # which is the True Positive Rate VS True negative rate.
                         )
 
 set.seed(35)
@@ -542,4 +548,91 @@ svm.tune <- train(Fate ~ Sex + Class + Age + Family + Embarked,
 
 svm.tune
 
+# You may have noticed that the same random number seed was set prior to fitting each model. 
+# This ensures that the same resampling sets are used for each model, enabling an "apple-to-apples" 
+# comparison of the resampling profiles between models during model evaluation.
 
+
+#### Model Evaluation 
+library(e1071)
+# With all four models in hand, I can begin to evaluate their performance by whipping together
+# some cross-tabulations of the observed and predicted Fate for the passengers in the test.batch data. 
+# caret makes this easy with the confusionMatrix function.
+
+# Logistics
+glm.pred <- predict(glm.tune.5, test.batch)
+confusionMatrix(glm.pred, test.batch$Fate)
+
+# Boosted 
+ada.pred <- predict(ada.tune, test.batch)
+confusionMatrix(ada.pred, test.batch$Fate)
+
+# RF
+rf.pred <- predict(rf.tune, test.batch)
+confusionMatrix(rf.pred, test.batch$Fate)
+
+# SVM
+svm.pred <- predict(svm.tune, test.batch)
+confusionMatrix(svm.pred, test.batch$Fate)
+
+####
+library(pROC)
+# We can also calculate, using each of the four fitted models, 
+# the predicted probabilities for the test.batch, and use those 
+# probabilities to plot the ROC curves.
+
+# Logistic = 0.89
+glm.probs <- predict(glm.tune.5, test.batch, type = "prob")
+glm.ROC <- roc(response = test.batch$Fate,
+               predictor = glm.probs$Survived,
+               levels = levels(test.batch$Fate))
+plot(glm.ROC, type = "S")
+
+
+# Boost model = 0.88
+ada.probs <- predict(ada.tune, test.batch, type = "prob")
+ada.ROC <- roc(response = test.batch$Fate,
+               predictor = ada.probs$Survived,
+               levels = levels(test.batch$Fate))
+plot(ada.ROC, add=T, col = "green")
+
+# RF = 0.89
+rf.probs <- predict(rf.tune, test.batch, type = "prob")
+rf.ROC <- roc(response = test.batch$Fate,
+              predictor = rf.probs$Survived,
+              levels = levels(test.batch$Fate))
+plot(rf.ROC, add = T, col = "red")
+
+# SVM = 0.89
+svm.probs <- predict(svm.tune, test.batch, type = "prob")
+svm.ROC <- roc(response = test.batch$Fate,
+               predictor = svm.probs$Survived,
+               levels = levels(test.batch$Fate))
+plot(svm.ROC, add = T, col = "blue")
+
+
+## The following R script uses caret function resamples to collect the resampling results, 
+# then calls the dotplot function to create a visualization of the resampling distributions.
+# One graph which sums up the performance of the four models, this is it.
+cv.values <- resamples(list(Logit = glm.tune.5,
+                            Ada = ada.tune,
+                            RF = rf.tune,
+                            SVM = svm.tune))
+cv.values 
+# Number of resamples = K * repeats (K = K-fold cross validation, where repeat 'repeats' times)
+
+dotplot(cv.values, metric = "ROC")
+
+
+
+# The next graph (my last, scout's honor) compares the four models on the basis of ROC, 
+# sensitivity, and specificity. Here, sensitivity ("Sens" on the graph) is the probability 
+# that a model will predict a Titanic passenger's death, given that the passenger actually 
+# did perish. Think of sensitivity in this case as the true perished rate. Specificity ("Spec"), 
+# on the other hand, is the probability that a model will predict survival, given that the 
+# passenger actually did survive. 
+bwplot(cv.values)
+
+# Simply put, all four models were better at predicting passenger fatalities than survivals,
+# and none of them are significantly better or worse than the other three. Of the four, 
+# if I had to pick one, I'd probably put my money on the logistic regression model. 
